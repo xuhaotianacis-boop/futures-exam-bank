@@ -25,6 +25,7 @@ table{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0}th,td{text
 <header><h1>期货从业资格考试 · 刷题本</h1><p class="sum">自编练习题（非真题），按《期货及衍生品基础》《期货法律法规与职业道德》章节组织。考试日期：2026年11月21日（杭州）。</p></header>
 <div id="app"></div>
 <script>
+(function(){"use strict";
 
 const CH_A = ["期货及衍生品概述", "期货市场组织结构与投资者", "交易制度与交易流程", "套期保值与基差", "投机与套利", "期权", "外汇衍生品", "利率期货及衍生品", "股指期货与股权类衍生品", "期货价格分析"];
 const CH_B = ["期货和衍生品法：总则与交易结算", "期货和衍生品法：交易者保护与监管责任", "期货交易管理条例", "交易场所与结算机构", "期货公司监督管理", "从业人员管理与行业自律", "职业道德与执业规范", "适当性与反洗钱"];
@@ -399,25 +400,26 @@ const RAW_B = `
 `;
 
 
+var MEM={};var LS={getItem:function(k){try{var v=window.localStorage.getItem(k);return v;}catch(e){return MEM.hasOwnProperty(k)?MEM[k]:null;}},setItem:function(k,v){MEM[k]=v;try{window.localStorage.setItem(k,v);}catch(e){throw e;}}};
 var TN={s:"单选",m:"多选",j:"判断",c:"综合"},PTS={s:0.5,m:1,j:0.5,c:1.5},MOCK_N={s:60,m:30,j:20,c:20},L="ABCD";
 function parse(raw,sub){var out=[];raw.split("\n").map(function(x){return x.trim();}).filter(function(x){return x.length>0;}).forEach(function(line,i){var p=line.split("|");if(p.length<6)return;var t=p[1];var opts=t==="j"?["正确","错误"]:p[3].split("~");out.push({id:sub+i,sub:sub,ch:Number(p[0]),t:t,stem:p[2],opts:opts,ans:p[4],exp:p[5]});});return out;}
 var QA=parse(RAW_A,"A"),QB=parse(RAW_B,"B"),ALL={};QA.concat(QB).forEach(function(q){ALL[q.id]=q;});
 var KEY="qh-futures-bank-v1",FAV_KEY="qh-futures-bank-fav-v1";
-function load(){try{var s=localStorage.getItem(KEY);if(s)return JSON.parse(s);}catch(e){}return{done:{},wrong:{}};}
-function loadFav(){try{var s=localStorage.getItem(FAV_KEY);if(s)return JSON.parse(s);}catch(e){}return{};}
+function load(){try{var s=LS.getItem(KEY);if(s)return JSON.parse(s);}catch(e){}return{done:{},wrong:{}};}
+function loadFav(){try{var s=LS.getItem(FAV_KEY);if(s)return JSON.parse(s);}catch(e){}return{};}
 function shuffle(a){var b=a.slice();for(var i=b.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=b[i];b[i]=b[j];b[j]=t;}return b;}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
 var S={sub:"A",mode:"home",store:load(),fav:loadFav(),persistOk:true,queue:[],idx:0,sel:"",shown:false,endless:false,label:"",chSel:"1",mq:[],mans:{},mi:0,mEnd:0,mDone:false,xfer:"",xmsg:""};
 var timer=null;
-function saveStore(){try{localStorage.setItem(KEY,JSON.stringify(S.store));S.persistOk=true;}catch(e){S.persistOk=false;}}
-function saveFav(){try{localStorage.setItem(FAV_KEY,JSON.stringify(S.fav));}catch(e){}}
+function saveStore(){try{LS.setItem(KEY,JSON.stringify(S.store));S.persistOk=true;}catch(e){S.persistOk=false;}}
+function saveFav(){try{LS.setItem(FAV_KEY,JSON.stringify(S.fav));}catch(e){}}
 function bank(){return S.sub==="A"?QA:QB;}function chs(){return S.sub==="A"?CH_A:CH_B;}
 function norm(s){return s.split("").sort().join("");}
 function record(q,ok,s){var d=Object.assign({},s.done),w=Object.assign({},s.wrong);var o=d[q.id]||{n:0,c:0};d[q.id]={n:o.n+1,c:o.c+(ok?1:0)};if(!ok)w[q.id]=Date.now();return{done:d,wrong:w};}
 function wrongIds(){return bank().filter(function(q){return S.store.wrong[q.id];}).map(function(q){return q.id;});}
 function favIds(){return bank().filter(function(q){return S.fav[q.id];}).map(function(q){return q.id;});}
-function start(ids,lab,inf){S.queue=ids;S.idx=0;S.sel="";S.shown=false;S.endless=inf;S.label=lab;S.mode="practice";top();}
-function top(){window.scrollTo(0,0);}
+function start(ids,lab,inf){S.queue=ids;S.idx=0;S.sel="";S.shown=false;S.endless=inf;S.label=lab;S.mode="practice";toTop();}
+function toTop(){window.scrollTo(0,0);}
 var A={
  sub:function(v){S.sub=v;S.mode="home";},
  mode:function(v){S.mode=v;},
@@ -425,15 +427,15 @@ var A={
  chapter:function(){var c=Number(S.chSel);start(bank().filter(function(q){return q.ch===c;}).map(function(q){return q.id;}),"第"+c+"章 "+chs()[c-1],false);},
  wrong:function(){start(shuffle(wrongIds()),"错题本重做",false);},
  favs:function(){start(shuffle(favIds()),"收藏夹练习",false);},
- mock:function(){var ids=[];["s","m","j","c"].forEach(function(t){var pool=shuffle(bank().filter(function(q){return q.t===t;}));pool.slice(0,MOCK_N[t]).forEach(function(q){ids.push(q.id);});});S.mq=ids;S.mans={};S.mi=0;S.mEnd=Date.now()+100*60*1000;S.mDone=false;S.mode="mock";top();startTimer();},
+ mock:function(){var ids=[];["s","m","j","c"].forEach(function(t){var pool=shuffle(bank().filter(function(q){return q.t===t;}));pool.slice(0,MOCK_N[t]).forEach(function(q){ids.push(q.id);});});S.mq=ids;S.mans={};S.mi=0;S.mEnd=Date.now()+100*60*1000;S.mDone=false;S.mode="mock";toTop();startTimer();},
  star:function(id){if(S.fav[id])delete S.fav[id];else S.fav[id]=Date.now();saveFav();},
  opt:function(i){var q=ALL[S.queue[S.idx]];if(S.shown)return;var k=L[i];if(q.t==="s"||q.t==="j"){submit(q,k);return;}S.sel=S.sel.indexOf(k)>=0?S.sel.replace(k,""):S.sel+k;},
  submit:function(){submit(ALL[S.queue[S.idx]],S.sel);},
- next:function(){var n=S.idx+1;if(n>=S.queue.length){if(S.endless){S.queue=shuffle(bank().map(function(q){return q.id;}));n=0;}else{S.mode="home";return;}}S.idx=n;S.sel="";S.shown=false;top();},
+ next:function(){var n=S.idx+1;if(n>=S.queue.length){if(S.endless){S.queue=shuffle(bank().map(function(q){return q.id;}));n=0;}else{S.mode="home";return;}}S.idx=n;S.sel="";S.shown=false;toTop();},
  rmWrong:function(id){delete S.store.wrong[id];saveStore();},
  mopt:function(i){var q=ALL[S.mq[S.mi]];var a=S.mans[q.id]||"";var k=L[i];S.mans[q.id]=(q.t==="s"||q.t==="j")?k:(a.indexOf(k)>=0?a.replace(k,""):a+k);},
  mgo:function(i){S.mi=Math.max(0,Math.min(S.mq.length-1,i));},
- finish:function(){finishMock();top();},
+ finish:function(){finishMock();toTop();},
  clear:function(){if(!confirm("确定清空本科目记录？"))return;var w={},d={};Object.keys(S.store.wrong).forEach(function(k){if(k.indexOf(S.sub)!==0)w[k]=S.store.wrong[k];});Object.keys(S.store.done).forEach(function(k){if(k.indexOf(S.sub)!==0)d[k]=S.store.done[k];});S.store={done:d,wrong:w};saveStore();},
  exp:function(){S.xfer=JSON.stringify({v:1,store:S.store,fav:S.fav});S.xmsg="已生成记录码：全选复制，粘贴到另一个浏览器的本框后点“导入并合并”。";},
  imp:function(){var ta=document.getElementById("xfer");S.xfer=ta?ta.value:S.xfer;try{var o=JSON.parse(S.xfer.trim());var s=o.store||{done:{},wrong:{}};var cur=S.store;var d=Object.assign({},cur.done);Object.keys(s.done||{}).forEach(function(k){var a=d[k],b=s.done[k];d[k]=a?{n:Math.max(a.n,b.n),c:Math.max(a.c,b.c)}:b;});S.store={done:d,wrong:Object.assign({},s.wrong||{},cur.wrong)};saveStore();S.fav=Object.assign({},o.fav||{},S.fav);saveFav();S.xmsg="导入成功，已与本机记录合并（不会删除本机已有记录）。";}catch(e){S.xmsg="记录码格式不正确，请完整粘贴。";}}
@@ -493,4 +495,5 @@ function render(){
 document.addEventListener("click",function(e){var t=e.target.closest?e.target.closest("[data-a]"):null;if(!t)return;var f=A[t.getAttribute("data-a")];if(!f)return;var v=t.getAttribute("data-v");f(v!==null&&/^-?\d+$/.test(v)&&t.getAttribute("data-a")!=="star"&&t.getAttribute("data-a")!=="rmWrong"?Number(v):v);render();});
 render();
 
+})();
 </script></body></html>
