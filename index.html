@@ -21,6 +21,13 @@ header{padding:calc(14px + env(safe-area-inset-top)) 16px 4px}h1{font-size:22px;
 .lbl{display:block;margin:16px 0 6px;font-size:14px;color:var(--tx2)}select{width:100%;font-size:16px;padding:12px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx)}
 textarea{width:100%;min-height:110px;font:14px ui-monospace,Menlo,monospace;padding:10px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx)}
 table{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0}th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--bd)}.rev{border-top:1px solid var(--bd);padding:12px 0}.warn{margin-top:12px;padding:10px;border-radius:10px;background:#fff3cd;color:#664d03}
+
+.nav-mini{display:flex;gap:8px;margin-bottom:8px}.nav-mini .big{flex:0 0 auto;padding:10px 14px;min-height:44px;font-size:15px}
+.prev{margin:8px 0;padding:10px 12px;border-radius:10px;border:1px dashed var(--bd);background:var(--bg)}.prev .lbl2{font-size:12px;color:var(--tx2);margin-bottom:4px}.prev .stem2{font-size:15px;line-height:22px;color:var(--tx2)}
+.actions{position:sticky;bottom:0;z-index:20;display:flex;flex-wrap:wrap;gap:10px;margin:12px -14px -14px;padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--bd);box-shadow:0 -6px 16px rgba(0,0,0,.06)}
+.actions .big{flex:1 1 140px}
+body.prac #app{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+
 </style></head><body>
 <header><h1>期货从业资格考试 · 刷题本</h1><p class="sum">自编练习题（非真题），按《期货及衍生品基础》《期货法律法规与职业道德》章节组织。考试日期：2026年11月21日（杭州）。</p></header>
 <div id="app"></div>
@@ -404,34 +411,40 @@ var MEM={};var LS={getItem:function(k){try{var v=window.localStorage.getItem(k);
 var TN={s:"单选",m:"多选",j:"判断",c:"综合"},PTS={s:0.5,m:1,j:0.5,c:1.5},MOCK_N={s:60,m:30,j:20,c:20},L="ABCD";
 function parse(raw,sub){var out=[];raw.split("\n").map(function(x){return x.trim();}).filter(function(x){return x.length>0;}).forEach(function(line,i){var p=line.split("|");if(p.length<6)return;var t=p[1];var opts=t==="j"?["正确","错误"]:p[3].split("~");out.push({id:sub+i,sub:sub,ch:Number(p[0]),t:t,stem:p[2],opts:opts,ans:p[4],exp:p[5]});});return out;}
 var QA=parse(RAW_A,"A"),QB=parse(RAW_B,"B"),ALL={};QA.concat(QB).forEach(function(q){ALL[q.id]=q;});
-var KEY="qh-futures-bank-v1",FAV_KEY="qh-futures-bank-fav-v1";
+var KEY="qh-futures-bank-v1",FAV_KEY="qh-futures-bank-fav-v1",RESUME_KEY="qh-futures-bank-resume-v1";
 function load(){try{var s=LS.getItem(KEY);if(s)return JSON.parse(s);}catch(e){}return{done:{},wrong:{}};}
 function loadFav(){try{var s=LS.getItem(FAV_KEY);if(s)return JSON.parse(s);}catch(e){}return{};}
+function loadResume(){try{var s=LS.getItem(RESUME_KEY);if(s){var o=JSON.parse(s);if(o&&o.queue&&o.queue.length&&o.idx>=0&&o.idx<o.queue.length&&ALL[o.queue[o.idx]])return o;}}catch(e){}return null;}
 function shuffle(a){var b=a.slice();for(var i=b.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=b[i];b[i]=b[j];b[j]=t;}return b;}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
 var S={sub:"A",mode:"home",store:load(),fav:loadFav(),persistOk:true,queue:[],idx:0,sel:"",shown:false,endless:false,label:"",chSel:"1",mq:[],mans:{},mi:0,mEnd:0,mDone:false,xfer:"",xmsg:""};
 var timer=null;
+(function restoreSub(){var r=loadResume();if(r&&(r.sub==="A"||r.sub==="B")){S.sub=r.sub;if(r.chSel)S.chSel=String(r.chSel);}})();
 function saveStore(){try{LS.setItem(KEY,JSON.stringify(S.store));S.persistOk=true;}catch(e){S.persistOk=false;}}
 function saveFav(){try{LS.setItem(FAV_KEY,JSON.stringify(S.fav));}catch(e){}}
+function saveResume(){if(S.mode!=="practice"||!S.queue.length||S.idx>=S.queue.length){clearResume();return;}try{LS.setItem(RESUME_KEY,JSON.stringify({v:1,sub:S.sub,chSel:S.chSel,queue:S.queue,idx:S.idx,endless:S.endless,label:S.label,shown:S.shown,sel:S.sel}));}catch(e){}}
+function clearResume(){try{try{window.localStorage.removeItem(RESUME_KEY);}catch(e2){}delete MEM[RESUME_KEY];}catch(e){}}
 function bank(){return S.sub==="A"?QA:QB;}function chs(){return S.sub==="A"?CH_A:CH_B;}
 function norm(s){return s.split("").sort().join("");}
 function record(q,ok,s){var d=Object.assign({},s.done),w=Object.assign({},s.wrong);var o=d[q.id]||{n:0,c:0};d[q.id]={n:o.n+1,c:o.c+(ok?1:0)};if(!ok)w[q.id]=Date.now();return{done:d,wrong:w};}
 function wrongIds(){return bank().filter(function(q){return S.store.wrong[q.id];}).map(function(q){return q.id;});}
 function favIds(){return bank().filter(function(q){return S.fav[q.id];}).map(function(q){return q.id;});}
-function start(ids,lab,inf){S.queue=ids;S.idx=0;S.sel="";S.shown=false;S.endless=inf;S.label=lab;S.mode="practice";toTop();}
+function start(ids,lab,inf){S.queue=ids;S.idx=0;S.sel="";S.shown=false;S.endless=inf;S.label=lab;S.mode="practice";saveResume();toTop();}
 function toTop(){window.scrollTo(0,0);}
+function prevQ(q){if(!q||q.stem.indexOf("接上题")!==0)return null;if(S.idx>0){var p=ALL[S.queue[S.idx-1]];if(p)return p;}var list=bank().filter(function(x){return x.ch===q.ch;});var i=-1;for(var n=0;n<list.length;n++){if(list[n].id===q.id){i=n;break;}}return i>0?list[i-1]:null;}
 var A={
- sub:function(v){S.sub=v;S.mode="home";},
- mode:function(v){S.mode=v;},
+ sub:function(v){if(S.mode==="practice")saveResume();S.sub=v;S.mode="home";},
+ mode:function(v){if(S.mode==="practice"&&v!=="practice")saveResume();S.mode=v;},
+ resume:function(){var r=loadResume();if(!r)return;S.sub=r.sub;S.chSel=String(r.chSel||S.chSel);S.queue=r.queue;S.idx=r.idx;S.endless=!!r.endless;S.label=r.label||"";S.sel=r.sel||"";S.shown=!!r.shown;S.mode="practice";toTop();},
  random:function(){start(shuffle(bank().map(function(q){return q.id;})),"随机刷题（无限）",true);},
  chapter:function(){var c=Number(S.chSel);start(bank().filter(function(q){return q.ch===c;}).map(function(q){return q.id;}),"第"+c+"章 "+chs()[c-1],false);},
  wrong:function(){start(shuffle(wrongIds()),"错题本重做",false);},
  favs:function(){start(shuffle(favIds()),"收藏夹练习",false);},
- mock:function(){var ids=[];["s","m","j","c"].forEach(function(t){var pool=shuffle(bank().filter(function(q){return q.t===t;}));pool.slice(0,MOCK_N[t]).forEach(function(q){ids.push(q.id);});});S.mq=ids;S.mans={};S.mi=0;S.mEnd=Date.now()+100*60*1000;S.mDone=false;S.mode="mock";toTop();startTimer();},
+ mock:function(){if(S.mode==="practice")saveResume();var ids=[];["s","m","j","c"].forEach(function(t){var pool=shuffle(bank().filter(function(q){return q.t===t;}));pool.slice(0,MOCK_N[t]).forEach(function(q){ids.push(q.id);});});S.mq=ids;S.mans={};S.mi=0;S.mEnd=Date.now()+100*60*1000;S.mDone=false;S.mode="mock";toTop();startTimer();},
  star:function(id){if(S.fav[id])delete S.fav[id];else S.fav[id]=Date.now();saveFav();},
  opt:function(i){var q=ALL[S.queue[S.idx]];if(S.shown)return;var k=L[i];if(q.t==="s"||q.t==="j"){submit(q,k);return;}S.sel=S.sel.indexOf(k)>=0?S.sel.replace(k,""):S.sel+k;},
  submit:function(){submit(ALL[S.queue[S.idx]],S.sel);},
- next:function(){var n=S.idx+1;if(n>=S.queue.length){if(S.endless){S.queue=shuffle(bank().map(function(q){return q.id;}));n=0;}else{S.mode="home";return;}}S.idx=n;S.sel="";S.shown=false;toTop();},
+ next:function(){var n=S.idx+1;if(n>=S.queue.length){if(S.endless){S.queue=shuffle(bank().map(function(q){return q.id;}));n=0;S.idx=n;S.sel="";S.shown=false;saveResume();toTop();return;}clearResume();S.mode="home";return;}S.idx=n;S.sel="";S.shown=false;saveResume();toTop();},
  rmWrong:function(id){delete S.store.wrong[id];saveStore();},
  mopt:function(i){var q=ALL[S.mq[S.mi]];var a=S.mans[q.id]||"";var k=L[i];S.mans[q.id]=(q.t==="s"||q.t==="j")?k:(a.indexOf(k)>=0?a.replace(k,""):a+k);},
  mgo:function(i){S.mi=Math.max(0,Math.min(S.mq.length-1,i));},
@@ -440,7 +453,7 @@ var A={
  exp:function(){S.xfer=JSON.stringify({v:1,store:S.store,fav:S.fav});S.xmsg="已生成记录码：全选复制，粘贴到另一个浏览器的本框后点“导入并合并”。";},
  imp:function(){var ta=document.getElementById("xfer");S.xfer=ta?ta.value:S.xfer;try{var o=JSON.parse(S.xfer.trim());var s=o.store||{done:{},wrong:{}};var cur=S.store;var d=Object.assign({},cur.done);Object.keys(s.done||{}).forEach(function(k){var a=d[k],b=s.done[k];d[k]=a?{n:Math.max(a.n,b.n),c:Math.max(a.c,b.c)}:b;});S.store={done:d,wrong:Object.assign({},s.wrong||{},cur.wrong)};saveStore();S.fav=Object.assign({},o.fav||{},S.fav);saveFav();S.xmsg="导入成功，已与本机记录合并（不会删除本机已有记录）。";}catch(e){S.xmsg="记录码格式不正确，请完整粘贴。";}}
 };
-function submit(q,a){if(!a)return;S.sel=a;S.shown=true;S.store=record(q,norm(a)===q.ans,S.store);saveStore();}
+function submit(q,a){if(!a)return;S.sel=a;S.shown=true;S.store=record(q,norm(a)===q.ans,S.store);saveStore();saveResume();}
 function finishMock(){if(S.mDone)return;S.mDone=true;var st=S.store;S.mq.forEach(function(id){var q=ALL[id];st=record(q,norm(S.mans[id]||"")===q.ans,st);});S.store=st;saveStore();stopTimer();}
 function startTimer(){stopTimer();timer=setInterval(function(){if(S.mode!=="mock"||S.mDone){stopTimer();return;}if(Date.now()>=S.mEnd){finishMock();render();return;}var el=document.getElementById("clock");if(el)el.textContent=clock();},1000);}
 function stopTimer(){if(timer){clearInterval(timer);timer=null;}}
@@ -449,33 +462,45 @@ function b(act,label,cls,arg){return '<button class="'+(cls||"big")+'" data-a="'
 function starBtn(id){return '<div class="row">'+b("star",S.fav[id]?"★ 已收藏":"☆ 收藏","star"+(S.fav[id]?" on":""),id)+'</div>';}
 function ansTxt(q){return q.t==="j"?(q.ans==="A"?"正确":"错误"):q.ans;}
 function table(cols,rows){return '<table><tr>'+cols.map(function(c){return "<th>"+c+"</th>";}).join("")+'</tr>'+rows.map(function(r){return "<tr>"+r.map(function(c){return "<td"+(c&&c.cls?' class="'+c.cls+'"':"")+">"+esc(c&&c.text!==undefined?c.text:c)+"</td>";}).join("")+"</tr>";}).join("")+'</table>';}
+function resumeLabel(r){if(!r)return "";var q=ALL[r.queue[r.idx]];var more=r.endless?"第 "+(r.idx+1)+" 题":((r.idx+1)+" / "+r.queue.length);return (r.label||"练习")+" · "+more+(q?" · "+TN[q.t]:"");}
 function render(){
  var h="",bk=bank(),cs=chs(),subName=S.sub==="A"?"期货基础知识":"期货法律法规";
- h+='<section><h2>科目</h2><div class="seg">'+b("sub","期货基础知识",S.sub==="A"?"segb act":"segb","A")+b("sub","期货法律法规",S.sub==="B"?"segb act":"segb","B")+'</div><div class="row">'+b("mode","首页",S.mode==="home"?"big pri":"big","home")+b("mode","进度统计",S.mode==="stats"?"big pri":"big","stats")+'</div></section>';
+ document.body.className=S.mode==="practice"?"prac":"";
+ if(S.mode==="practice"||S.mode==="mock"){
+  h+='<div class="nav-mini">'+b("mode","← 首页","big","home")+(S.mode==="practice"?b("mode","进度","big","stats"):"")+'</div>';
+ }else{
+  h+='<section><h2>科目</h2><div class="seg">'+b("sub","期货基础知识",S.sub==="A"?"segb act":"segb","A")+b("sub","期货法律法规",S.sub==="B"?"segb act":"segb","B")+'</div><div class="row">'+b("mode","首页",S.mode==="home"?"big pri":"big","home")+b("mode","进度统计",S.mode==="stats"?"big pri":"big","stats")+'</div></section>';
+ }
  var wi=wrongIds(),fi=favIds();
  var chStats=cs.map(function(name,i){var qs=bk.filter(function(q){return q.ch===i+1;});var done=0,n=0,c=0;qs.forEach(function(q){var d=S.store.done[q.id];if(d){done++;n+=d.n;c+=d.c;}});return{name:name,total:qs.length,done:done,acc:n?Math.round(c/n*100):-1,wrong:qs.filter(function(q){return S.store.wrong[q.id];}).length};});
  var totDone=chStats.reduce(function(a,x){return a+x.done;},0);
+ var resume=loadResume();
  if(S.mode==="home"){
   var tc=["s","m","j","c"].map(function(t){return TN[t]+bk.filter(function(q){return q.t===t;}).length;}).join(" · ");
-  h+='<section><h2>'+subName+'：选择练习方式</h2><p>题库 '+bk.length+' 题（'+tc+'）；已做 '+totDone+' 题，错题本 '+wi.length+' 题。</p><div class="row">'+b("random","随机刷题（无限）","big pri")+b("mock","模拟考试（100分钟）")+(wi.length?b("wrong","错题本重做（"+wi.length+"）"):"")+(fi.length?b("favs","收藏夹（"+fi.length+"）"):"")+'</div>';
+  h+='<section><h2>'+subName+'：选择练习方式</h2>';
+  if(resume&&resume.sub===S.sub){h+='<div class="row">'+b("resume","继续上次："+esc(resumeLabel(resume)),"big pri")+'</div><p class="tag">也可以重新选章节从头开始。</p>';}
+  h+='<p>题库 '+bk.length+' 题（'+tc+'）；已做 '+totDone+' 题，错题本 '+wi.length+' 题。</p><div class="row">'+b("random","随机刷题（无限）",(resume&&resume.sub===S.sub)?"":"big pri")+b("mock","模拟考试（100分钟）")+(wi.length?b("wrong","错题本重做（"+wi.length+"）"):"")+(fi.length?b("favs","收藏夹（"+fi.length+"）"):"")+'</div>';
   h+='<label class="lbl">章节练习</label><select id="chsel">'+cs.map(function(c,i){return '<option value="'+(i+1)+'"'+(String(i+1)===S.chSel?" selected":"")+'>第'+(i+1)+'章 '+esc(c)+'（'+bk.filter(function(q){return q.ch===i+1;}).length+'）</option>';}).join("")+'</select><div class="row">'+b("chapter","开始本章练习")+'</div>';
   if(!S.persistOk)h+='<div class="warn">当前环境不允许本地存储，进度和错题仅在本次打开期间保留。</div>';
   h+='</section>';
  }
  if(S.mode==="practice"&&ALL[S.queue[S.idx]]){
   var q=ALL[S.queue[S.idx]];
-  h+='<section><h2>'+esc(S.label)+'</h2><div class="tag">'+(S.endless?"第 "+(S.idx+1)+" 题":(S.idx+1)+" / "+S.queue.length)+" · "+TN[q.t]+" · 第"+q.ch+"章 "+esc(cs[q.ch-1])+'</div>'+starBtn(q.id)+'<div class="stem">'+esc(q.stem)+'</div>';
+  var pq=prevQ(q);
+  h+='<section><h2>'+esc(S.label)+'</h2><div class="tag">'+(S.endless?"第 "+(S.idx+1)+" 题":(S.idx+1)+" / "+S.queue.length)+" · "+TN[q.t]+" · 第"+q.ch+"章 "+esc(cs[q.ch-1])+'</div>'+starBtn(q.id);
+  if(pq)h+='<div class="prev"><div class="lbl2">上一题（本题承接）</div><div class="stem2">'+esc(pq.stem)+(pq.t!=="j"?"（"+esc(pq.opts.map(function(o,i){return L[i]+". "+o;}).join(" / "))+"）":"")+'</div></div>';
+  h+='<div class="stem">'+esc(q.stem)+'</div>';
   if((q.t==="m"||q.t==="c")&&!S.shown)h+='<div class="tag">'+(q.t==="m"?"多选：选出全部正确项后提交":"综合题（不定项）：可能一个或多个答案")+'</div>';
   q.opts.forEach(function(o,i){var k=L[i],cl="opt"+(S.sel.indexOf(k)>=0?" sel":"");if(S.shown){if(q.ans.indexOf(k)>=0)cl+=" ok";else if(S.sel.indexOf(k)>=0)cl+=" bad";}h+=b("opt",(q.t==="j"?"":k+". ")+esc(o),cl,i);});
-  if((q.t==="m"||q.t==="c")&&!S.shown)h+='<div class="row">'+b("submit","提交答案","big pri")+'</div>';
-  if(S.shown){var ok=norm(S.sel)===q.ans;h+='<div class="res '+(ok?"okt":"badt")+'">'+(ok?"回答正确":"回答错误")+" · 正确答案："+ansTxt(q)+'</div><div class="exp">解析：'+esc(q.exp)+'</div><div class="row">'+b("next","下一题","big pri")+(S.store.wrong[q.id]?b("rmWrong","已掌握，移出错题本","big",q.id):"")+'</div>';}
+  if((q.t==="m"||q.t==="c")&&!S.shown)h+='<div class="actions">'+b("submit","提交答案","big pri")+'</div>';
+  if(S.shown){var ok=norm(S.sel)===q.ans;h+='<div class="res '+(ok?"okt":"badt")+'">'+(ok?"回答正确":"回答错误")+" · 正确答案："+ansTxt(q)+'</div><div class="exp">解析：'+esc(q.exp)+'</div><div class="actions">'+b("next","下一题","big pri")+(S.store.wrong[q.id]?b("rmWrong","已掌握，移出错题本","big",q.id):"")+'</div>';}
   h+='</section>';
  }
  if(S.mode==="mock"&&!S.mDone&&S.mq.length){
   var q=ALL[S.mq[S.mi]],a=S.mans[q.id]||"";
   h+='<section><h2>模拟考试 · '+subName+'</h2><div class="tag" id="clock">'+clock()+'</div><div class="tag">第 '+(S.mi+1)+' 题 · '+TN[q.t]+'（'+PTS[q.t]+'分）</div>'+starBtn(q.id)+'<div class="stem">'+esc(q.stem)+'</div>';
   q.opts.forEach(function(o,i){h+=b("mopt",(q.t==="j"?"":L[i]+". ")+esc(o),"opt"+(a.indexOf(L[i])>=0?" sel":""),i);});
-  h+='<div class="row">'+b("mgo","上一题","big",S.mi-1)+b("mgo","下一题","big pri",S.mi+1)+'</div><div class="grid">'+S.mq.map(function(id,i){return b("mgo",String(i+1),"cell"+(i===S.mi?" cur":"")+(S.mans[id]?" done":""),i);}).join("")+'</div><div class="row">'+b("finish","交卷","big pri")+'</div></section>';
+  h+='<div class="actions">'+b("mgo","上一题","big",S.mi-1)+b("mgo","下一题","big pri",S.mi+1)+'</div><div class="grid">'+S.mq.map(function(id,i){return b("mgo",String(i+1),"cell"+(i===S.mi?" cur":"")+(S.mans[id]?" done":""),i);}).join("")+'</div><div class="actions">'+b("finish","交卷","big pri")+'</div></section>';
  }
  if(S.mode==="mock"&&S.mDone){
   var sc=0,by={s:0,m:0,j:0,c:0};S.mq.forEach(function(id){var q=ALL[id];if(norm(S.mans[id]||"")===q.ans){sc+=PTS[q.t];by[q.t]++;}});
