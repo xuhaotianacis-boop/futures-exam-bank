@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hans"><head><meta charset="UTF-8">
+<html lang="zh-Hans"><head><meta charset="UTF-8"><meta http-equiv="Cache-Control" content="no-cache">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -411,18 +411,34 @@ var MEM={};var LS={getItem:function(k){try{var v=window.localStorage.getItem(k);
 var TN={s:"单选",m:"多选",j:"判断",c:"综合"},PTS={s:0.5,m:1,j:0.5,c:1.5},MOCK_N={s:60,m:30,j:20,c:20},L="ABCD";
 function parse(raw,sub){var out=[];raw.split("\n").map(function(x){return x.trim();}).filter(function(x){return x.length>0;}).forEach(function(line,i){var p=line.split("|");if(p.length<6)return;var t=p[1];var opts=t==="j"?["正确","错误"]:p[3].split("~");out.push({id:sub+i,sub:sub,ch:Number(p[0]),t:t,stem:p[2],opts:opts,ans:p[4],exp:p[5]});});return out;}
 var QA=parse(RAW_A,"A"),QB=parse(RAW_B,"B"),ALL={};QA.concat(QB).forEach(function(q){ALL[q.id]=q;});
-var KEY="qh-futures-bank-v1",FAV_KEY="qh-futures-bank-fav-v1",RESUME_KEY="qh-futures-bank-resume-v1";
+var KEY="qh-futures-bank-v1",FAV_KEY="qh-futures-bank-fav-v1",RESUME_KEY="qh-futures-bank-resume-v1",SUB_KEY="qh-futures-bank-sub-v1";
 function load(){try{var s=LS.getItem(KEY);if(s)return JSON.parse(s);}catch(e){}return{done:{},wrong:{}};}
 function loadFav(){try{var s=LS.getItem(FAV_KEY);if(s)return JSON.parse(s);}catch(e){}return{};}
-function loadResume(){try{var s=LS.getItem(RESUME_KEY);if(s){var o=JSON.parse(s);if(o&&o.queue&&o.queue.length&&o.idx>=0&&o.idx<o.queue.length&&ALL[o.queue[o.idx]])return o;}}catch(e){}return null;}
+function loadResumeSnap(){try{var s=LS.getItem(RESUME_KEY);if(s){var o=JSON.parse(s);if(o&&o.queue&&o.queue.length&&o.idx>=0&&o.idx<o.queue.length&&ALL[o.queue[o.idx]])return o;}}catch(e){}return null;}
+function inferResumeFor(sub){var bk=sub==="A"?QA:QB,cs=sub==="A"?CH_A:CH_B,found=null,next=null,lastDone=0;
+ for(var c=1;c<=cs.length;c++){var qs=bk.filter(function(q){return q.ch===c;});if(!qs.length)continue;var first=-1,done=0;
+  for(var i=0;i<qs.length;i++){if(S.store.done[qs[i].id])done++;else if(first<0)first=i;}
+  if(done>0&&done===qs.length)lastDone=c;
+  else if(done>0&&first>=0&&!found)found={v:1,sub:sub,chSel:String(c),queue:qs.map(function(q){return q.id;}),idx:first,endless:false,label:"第"+c+"章 "+cs[c-1],shown:false,sel:"",inferred:true};
+  else if(done===0&&next===null)next={c:c,qs:qs};}
+ if(found)return found;
+ if(next&&lastDone>0){var c=next.c,qs=next.qs;return{v:1,sub:sub,chSel:String(c),queue:qs.map(function(q){return q.id;}),idx:0,endless:false,label:"第"+c+"章 "+cs[c-1],shown:false,sel:"",inferred:true};}
+ return null;}
+function lastWrong(sub){var m=0;Object.keys(S.store.wrong||{}).forEach(function(k){if(k.indexOf(sub)===0){var t=S.store.wrong[k];if(t>m)m=t;}});return m;}
+function inferBestResume(){var a=inferResumeFor("A"),b=inferResumeFor("B");if(a&&b){var ta=lastWrong("A"),tb=lastWrong("B");if(tb>ta)return b;if(ta>tb)return a;try{if(LS.getItem(SUB_KEY)==="B")return b;}catch(e){}return a;}return a||b;}
+function loadResume(){var snap=loadResumeSnap();if(snap&&(!S||!S.sub||snap.sub===S.sub))return snap;var inf=S&&S.sub?inferResumeFor(S.sub):inferBestResume();return inf||snap||null;}
+function loadResumeAny(){return loadResumeSnap()||inferBestResume();}
 function shuffle(a){var b=a.slice();for(var i=b.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=b[i];b[i]=b[j];b[j]=t;}return b;}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
 var S={sub:"A",mode:"home",store:load(),fav:loadFav(),persistOk:true,queue:[],idx:0,sel:"",shown:false,endless:false,label:"",chSel:"1",mq:[],mans:{},mi:0,mEnd:0,mDone:false,xfer:"",xmsg:""};
 var timer=null;
-(function restoreSub(){var r=loadResume();if(r&&(r.sub==="A"||r.sub==="B")){S.sub=r.sub;if(r.chSel)S.chSel=String(r.chSel);}})();
+(function restoreSub(){var r=loadResumeAny();if(r&&(r.sub==="A"||r.sub==="B")){S.sub=r.sub;if(r.chSel)S.chSel=String(r.chSel);}else{try{var s=LS.getItem(SUB_KEY);if(s==="A"||s==="B")S.sub=s;}catch(e){}}})();
+function saveSub(){try{LS.setItem(SUB_KEY,S.sub);}catch(e){}}
+function flushResume(){if(S.mode==="practice")saveResume();}
+try{window.addEventListener("pagehide",flushResume);window.addEventListener("beforeunload",flushResume);document.addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden")flushResume();});}catch(e){}
 function saveStore(){try{LS.setItem(KEY,JSON.stringify(S.store));S.persistOk=true;}catch(e){S.persistOk=false;}}
 function saveFav(){try{LS.setItem(FAV_KEY,JSON.stringify(S.fav));}catch(e){}}
-function saveResume(){if(S.mode!=="practice"||!S.queue.length||S.idx>=S.queue.length){clearResume();return;}try{LS.setItem(RESUME_KEY,JSON.stringify({v:1,sub:S.sub,chSel:S.chSel,queue:S.queue,idx:S.idx,endless:S.endless,label:S.label,shown:S.shown,sel:S.sel}));}catch(e){}}
+function saveResume(){if(S.mode!=="practice"||!S.queue.length||S.idx>=S.queue.length){clearResume();return;}try{saveSub();LS.setItem(RESUME_KEY,JSON.stringify({v:1,sub:S.sub,chSel:S.chSel,queue:S.queue,idx:S.idx,endless:S.endless,label:S.label,shown:S.shown,sel:S.sel}));}catch(e){}}
 function clearResume(){try{try{window.localStorage.removeItem(RESUME_KEY);}catch(e2){}delete MEM[RESUME_KEY];}catch(e){}}
 function bank(){return S.sub==="A"?QA:QB;}function chs(){return S.sub==="A"?CH_A:CH_B;}
 function norm(s){return s.split("").sort().join("");}
@@ -433,9 +449,9 @@ function start(ids,lab,inf){S.queue=ids;S.idx=0;S.sel="";S.shown=false;S.endless
 function toTop(){window.scrollTo(0,0);}
 function prevQ(q){if(!q||q.stem.indexOf("接上题")!==0)return null;if(S.idx>0){var p=ALL[S.queue[S.idx-1]];if(p)return p;}var list=bank().filter(function(x){return x.ch===q.ch;});var i=-1;for(var n=0;n<list.length;n++){if(list[n].id===q.id){i=n;break;}}return i>0?list[i-1]:null;}
 var A={
- sub:function(v){if(S.mode==="practice")saveResume();S.sub=v;S.mode="home";},
+ sub:function(v){if(S.mode==="practice")saveResume();S.sub=v;saveSub();S.mode="home";},
  mode:function(v){if(S.mode==="practice"&&v!=="practice")saveResume();S.mode=v;},
- resume:function(){var r=loadResume();if(!r)return;S.sub=r.sub;S.chSel=String(r.chSel||S.chSel);S.queue=r.queue;S.idx=r.idx;S.endless=!!r.endless;S.label=r.label||"";S.sel=r.sel||"";S.shown=!!r.shown;S.mode="practice";toTop();},
+ resume:function(){var r=loadResume();if(!r)return;S.sub=r.sub;saveSub();S.chSel=String(r.chSel||S.chSel);S.queue=r.queue;S.idx=r.idx;S.endless=!!r.endless;S.label=r.label||"";S.sel=r.sel||"";S.shown=!!r.shown;S.mode="practice";if(!r.inferred)saveResume();toTop();},
  random:function(){start(shuffle(bank().map(function(q){return q.id;})),"随机刷题（无限）",true);},
  chapter:function(){var c=Number(S.chSel);start(bank().filter(function(q){return q.ch===c;}).map(function(q){return q.id;}),"第"+c+"章 "+chs()[c-1],false);},
  wrong:function(){start(shuffle(wrongIds()),"错题本重做",false);},
